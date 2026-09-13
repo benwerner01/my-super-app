@@ -1,6 +1,8 @@
-const stdout = process.env.MR_GREEN_STDOUT ?? "";
-const stderr = process.env.MR_GREEN_STDERR ?? "";
-const status = Number(process.env.MR_GREEN_STATUS ?? "0");
+// Invoked by lib/run-automation.sh. Print a message to notify, print nothing
+// to stay silent.
+const stdout = process.env.RUN_STDOUT ?? "";
+const stderr = process.env.RUN_STDERR ?? "";
+const status = Number(process.env.RUN_STATUS ?? "0");
 
 const compact = (value) => value.replace(/\s+/g, " ").trim().slice(0, 180);
 

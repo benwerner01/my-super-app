@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* One light palette, used everywhere. Semantic names so a colour is never
+   chosen twice for two different meanings, and every component reads these
+   rather than a literal — switching themes is this block. The status colours
+   are darkened for legibility against white; the brighter hues that work on a
+   dark canvas do not carry at 11px on this one. */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #f6f7f9;
+  --color-panel: #ffffff;
+  --color-raised: #eceff4;
+  --color-line: #dde1e8;
+  --color-ink: #12161d;
+  --color-dim: #4a5261;
+  --color-faint: #646d7d;
+
+  --color-ok: #10795a;
+  --color-warn: #8a5b06;
+  --color-bad: #bf3126;
+  --color-info: #1f57c3;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-info) 35%, transparent);
+}

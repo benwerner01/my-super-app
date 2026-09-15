@@ -18,7 +18,19 @@ export type RunRecord = {
   notified: string | null;
   /** Whatever the automation reported as its outcome, truncated. */
   summary: unknown;
+  /**
+   * The run's asserted failure: what the automation itself reported as `error`,
+   * or its stderr when the process actually exited non-zero. A run that exits 0
+   * and reports nothing has no error here, however much it wrote to stderr.
+   */
   error: string | null;
+  /**
+   * Everything the run wrote to stderr, kept whether or not it failed. A warning
+   * on a successful run lands here and nowhere else, so a real problem an
+   * automation only ever mentions on stderr stays visible instead of being
+   * dropped — it is just not dressed up as a failure.
+   */
+  stderr: string | null;
 };
 
 const MAX_LOG_BYTES = 2_000_000;
@@ -56,12 +68,17 @@ export async function readRuns(root: string, limit = 20): Promise<RunRecord[]> {
   for (const line of contents.split("\n")) {
     if (!line.trim()) continue;
     try {
-      records.push(JSON.parse(line) as RunRecord);
+      records.push(normalize(JSON.parse(line) as RunRecord));
     } catch {
       // a torn line should not hide the rest of the history
     }
   }
   return records.slice(-limit);
+}
+
+/** Records written before `stderr` existed simply do not carry the field. */
+function normalize(record: RunRecord): RunRecord {
+  return { ...record, stderr: record.stderr ?? null };
 }
 
 function truncate(value: unknown): unknown {
@@ -95,7 +112,8 @@ export function buildRecord(input: {
     payload = undefined;
   }
 
-  const compactError = input.stderr.replace(/\s+/gu, " ").trim().slice(0, 500);
+  const compactStderr = input.stderr.replace(/\s+/gu, " ").trim().slice(0, 500);
+  const reportedError = typeof payload?.["error"] === "string" ? payload["error"] : null;
 
   return {
     automation: input.automation,
@@ -106,17 +124,32 @@ export function buildRecord(input: {
     changed: typeof payload?.["changed"] === "boolean" ? payload["changed"] : null,
     notified: input.notified.trim() || null,
     summary: truncate(payload?.["changes"] ?? payload?.["summary"] ?? null),
-    error:
-      (typeof payload?.["error"] === "string" ? payload["error"] : null) ??
-      (compactError || null),
+    error: reportedError ?? (input.exitCode === 0 ? null : compactStderr || null),
+    stderr: compactStderr || null,
   };
 }
 
-function formatRow(record: RunRecord): string {
+/** Stderr is worth a line of its own so a quiet warning is not swallowed. */
+function detailOf(record: RunRecord): string {
+  if (record.notified) return record.notified;
+  if (record.error) return record.error;
+  if (record.stderr) return `stderr: ${record.stderr}`;
+  return record.summary ? JSON.stringify(record.summary) : "";
+}
+
+export function formatRow(record: RunRecord): string {
   const when = record.startedAt.replace("T", " ").slice(0, 19);
-  const outcome = record.ok ? (record.changed ? "changed" : "no-op") : `FAILED(${record.exitCode})`;
+  // A run that exits 0 while reporting an error is not a no-op; saying so here
+  // would hide exactly the failure this column exists to show.
+  const outcome = !record.ok
+    ? `FAILED(${record.exitCode})`
+    : record.error
+      ? "error"
+      : record.changed
+        ? "changed"
+        : "no-op";
   const seconds = `${(record.durationMs / 1000).toFixed(1)}s`;
-  const detail = record.notified ?? record.error ?? (record.summary ? JSON.stringify(record.summary) : "");
+  const detail = detailOf(record);
   return `${when}  ${record.automation.padEnd(22)} ${outcome.padEnd(12)} ${seconds.padStart(7)}  ${detail}`;
 }
 

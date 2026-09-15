@@ -9,7 +9,7 @@
   },
   "scripts": {
     "mr-green:calendar": "node --env-file-if-exists=.env.local automations/mr-green-calendar/index.ts",
-    "test": "node --test \"automations/**/*.test.ts\"",
+    "test": "node --test \"automations/**/*.test.ts\" \"lib/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "runs": "node lib/run-log.ts list",
     "run:automation": "zsh lib/run-automation.sh"
